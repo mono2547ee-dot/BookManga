@@ -118,7 +118,7 @@ def get_connection():
 
         database = config.get(
             "database",
-            "neo4j"
+            "308b65ad"
         )
 
         driver = create_driver(
