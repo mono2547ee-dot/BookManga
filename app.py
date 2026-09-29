@@ -128,7 +128,7 @@ def get_connection():
 uri = "neo4j+s://f7676f9c.databases.neo4j.io"
 username = "f7676f9c"
 password = "ThfWy64phy4_rMjelXRAvIIoFlgZNXzNyJL5NV7c0hM"
-database = "neo4j"
+database = "f7676f9c"
             """,
             language="toml"
         )
