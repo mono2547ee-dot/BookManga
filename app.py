@@ -15,7 +15,6 @@ st.set_page_config(
 # =========================================================
 # CSS
 # =========================================================
-# ✅ แก้ไข: ลบ dedent() ออก และให้ unsafe_allow_html=True เป็น arg ของ st.markdown()
 st.markdown(
     """
     <style>
@@ -97,7 +96,6 @@ def get_connection():
         st.error(
             "❌ เชื่อมต่อ Neo4j Aura ไม่สำเร็จ"
         )
-        # ✅ แก้ไข: ลบ dedent() ออก
         st.markdown(
             """
             ### ตรวจสอบ Streamlit Secrets
@@ -774,7 +772,7 @@ def create_demo_data():
 # =========================================================
 with st.sidebar:
     st.markdown(
-        "## 📚 MangaGraph"
+        "##  MangaGraph"
     )
     st.caption(
         "Neo4j Aura + Streamlit"
@@ -798,12 +796,11 @@ with st.sidebar:
 # =========================================================
 # HEADER
 # =========================================================
-# ✅ แก้ไข: ลบ dedent() ออก และให้ unsafe_allow_html=True เป็น arg ของ st.markdown()
 st.markdown(
     """
     <div class="hero">
         <h1>
-            📚 Manga Recommendation System
+             Manga Recommendation System
         </h1>
         <p>
             ระบบแนะนำ Manga ด้วย Neo4j Graph Database
@@ -958,7 +955,6 @@ elif page == "Recommendations":
                 "Manga นี้ได้รับความนิยม "
                 "จากจำนวน LIKES"
             )
-        # ✅ แก้ไข: ลบ dedent() ออก และให้ unsafe_allow_html=True เป็น arg ของ st.markdown()
         st.markdown(
             f"""
             <div class="manga-card">
@@ -999,7 +995,7 @@ elif page == "Recommendations":
 # =========================================================
 elif page == "Manga Search":
     st.subheader(
-        "🔎 ค้นหา Manga"
+        " ค้นหา Manga"
     )
     keyword = st.text_input(
         "ชื่อ Manga",
@@ -1220,7 +1216,6 @@ elif page == "Admin / Setup":
     st.subheader(
         "⚙️ Admin / Setup"
     )
-    # ✅ แก้ไข: ลบ dedent() ออก
     st.markdown(
         """
         ### Graph Schema
@@ -1234,7 +1229,7 @@ elif page == "Admin / Setup":
         """
     )
     if st.button(
-        " สร้าง Constraint",
+        "🔧 สร้าง Constraint",
         use_container_width=True
     ):
         try:
@@ -1249,7 +1244,7 @@ elif page == "Admin / Setup":
             st.exception(e)
     st.divider()
     st.markdown(
-        "###  ข้อมูลตัวอย่าง"
+        "### 📦 ข้อมูลตัวอย่าง"
     )
     st.caption(
         """
@@ -1259,7 +1254,7 @@ elif page == "Admin / Setup":
         """
     )
     if st.button(
-        " สร้าง User + Manga + LIKES",
+        "📦 สร้าง User + Manga + LIKES",
         type="primary",
         use_container_width=True
     ):
@@ -1276,7 +1271,7 @@ elif page == "Admin / Setup":
             st.exception(e)
     st.divider()
     st.markdown(
-        "###  สร้าง RECOMMENDS"
+        "### 🔗 สร้าง RECOMMENDS"
     )
     limit = st.slider(
         "จำนวน Recommendation ต่อ User",
@@ -1304,7 +1299,7 @@ elif page == "Admin / Setup":
             st.exception(e)
     st.divider()
     st.markdown(
-        "###  RECOMMENDS ทั้งหมด"
+        "### 📋 RECOMMENDS ทั้งหมด"
     )
     rows = get_recommends()
     if rows:
