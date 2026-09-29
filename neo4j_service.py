@@ -20,7 +20,7 @@ def _config() -> tuple[str, str, str, str]:
     uri = "neo4j+s://f7676f9c.databases.neo4j.io"
     username = "f7676f9c"
     password = "ThfWy64phy4_rMjelXRAvIIoFlgZNXzNyJL5NV7c0hM"
-    database = "f7676f9c"
+    database = "5c11df82"
     """
 
     cfg = st.secrets["neo4j"]
