@@ -125,9 +125,9 @@ def get_connection():
         st.code(
             """
 [neo4j]
-uri = "neo4j+s://YOUR_INSTANCE.databases.neo4j.io"
-username = "neo4j"
-password = "YOUR_PASSWORD"
+uri = "neo4j+s://f7676f9c.databases.neo4j.io"
+username = "f7676f9c"
+password = "ThfWy64phy4_rMjelXRAvIIoFlgZNXzNyJL5NV7c0hM"
 database = "neo4j"
             """,
             language="toml"
