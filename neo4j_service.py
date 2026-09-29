@@ -17,10 +17,10 @@ def _config() -> tuple[str, str, str, str]:
     ตัวอย่างไฟล์ .streamlit/secrets.toml
 
     [neo4j]
-    uri = "neo4j+s://YOUR_INSTANCE.databases.neo4j.io"
-    username = "neo4j"
-    password = "YOUR_PASSWORD"
-    database = "neo4j"
+    uri = "neo4j+s://f7676f9c.databases.neo4j.io"
+    username = "f7676f9c"
+    password = "ThfWy64phy4_rMjelXRAvIIoFlgZNXzNyJL5NV7c0hM"
+    database = "f7676f9c"
     """
 
     cfg = st.secrets["neo4j"]
@@ -29,7 +29,7 @@ def _config() -> tuple[str, str, str, str]:
         cfg["uri"],
         cfg["username"],
         cfg["password"],
-        cfg.get("database", "neo4j"),
+        cfg.get("database", "f7676f9c"),
     )
 
 
