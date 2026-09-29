@@ -29,7 +29,7 @@ def _config() -> tuple[str, str, str, str]:
         cfg["uri"],
         cfg["username"],
         cfg["password"],
-        cfg.get("database", "f7676f9c"),
+        cfg.get("database", "5c11df82"),
     )
 
 
