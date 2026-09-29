@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, RoutingControl
+from textwrap import dedent
 
 
 # =========================================================
@@ -20,61 +21,63 @@ st.set_page_config(
 # =========================================================
 
 st.markdown(
-    """
-    <style>
+    dedent(
+        """
+        <style>
 
-    .block-container {
-        padding-top: 1.2rem;
-        padding-bottom: 2rem;
-    }
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+        }
 
-    .hero {
-        padding: 1.5rem;
-        border-radius: 20px;
-        background: linear-gradient(
-            120deg,
-            #111827 0%,
-            #312e81 55%,
-            #7c3aed 100%
-        );
-        color: white;
-        margin-bottom: 1rem;
-    }
+        .hero {
+            padding: 1.5rem;
+            border-radius: 20px;
+            background: linear-gradient(
+                120deg,
+                #111827 0%,
+                #312e81 55%,
+                #7c3aed 100%
+            );
+            color: white;
+            margin-bottom: 1rem;
+        }
 
-    .hero h1 {
-        margin: 0;
-        font-size: 2.2rem;
-    }
+        .hero h1 {
+            margin: 0;
+            font-size: 2.2rem;
+        }
 
-    .hero p {
-        margin-top: .4rem;
-        opacity: .9;
-    }
+        .hero p {
+            margin-top: .4rem;
+            opacity: .9;
+        }
 
-    .manga-card {
-        padding: 1rem;
-        border: 1px solid rgba(128,128,128,.3);
-        border-radius: 16px;
-        margin-bottom: .8rem;
-    }
+        .manga-card {
+            padding: 1rem;
+            border: 1px solid rgba(128,128,128,.3);
+            border-radius: 16px;
+            margin-bottom: .8rem;
+        }
 
-    .score {
-        display: inline-block;
-        padding: .25rem .6rem;
-        border-radius: 999px;
-        background: #7c3aed;
-        color: white;
-        font-size: .8rem;
-        font-weight: bold;
-    }
+        .score {
+            display: inline-block;
+            padding: .25rem .6rem;
+            border-radius: 999px;
+            background: #7c3aed;
+            color: white;
+            font-size: .8rem;
+            font-weight: bold;
+        }
 
-    .muted {
-        opacity: .7;
-        font-size: .9rem;
-    }
+        .muted {
+            opacity: .7;
+            font-size: .9rem;
+        }
 
-    </style>
-    """,
+        </style>
+        """
+    ),
     unsafe_allow_html=True,
 )
 
@@ -83,43 +86,29 @@ st.markdown(
 # NEO4J CONNECTION
 # =========================================================
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def create_driver(uri, username, password):
-    """
-    สร้าง Neo4j Driver
-    """
 
     driver = GraphDatabase.driver(
         uri,
         auth=(username, password)
     )
 
-    # ตรวจสอบการเชื่อมต่อ
     driver.verify_connectivity()
 
     return driver
 
 
 def get_connection():
-    """
-    อ่านค่าการเชื่อมต่อ Neo4j
-    จาก Streamlit Secrets
-    """
 
     try:
 
         config = st.secrets["neo4j"]
 
         uri = config["uri"]
-
         username = config["username"]
-
         password = config["password"]
-
-        database = config.get(
-            "database",
-            "308b65ad"
-        )
+        database = config.get("database", "308b65ad")
 
         driver = create_driver(
             uri,
@@ -136,28 +125,28 @@ def get_connection():
         )
 
         st.markdown(
-            """
-            ### ตรวจสอบ Streamlit Secrets
+            dedent(
+                """
+                ### ตรวจสอบ Streamlit Secrets
 
-            ให้ใส่ข้อมูลในรูปแบบนี้:
+                ```toml
+                [neo4j]
 
-            ```toml
-            [neo4j]
+                uri = "neo4j+s://YOUR_INSTANCE.databases.neo4j.io"
 
-            uri = "neo4j+s://YOUR_INSTANCE.databases.neo4j.io"
+                username = "neo4j"
 
-            username = "neo4j"
+                password = "YOUR_PASSWORD"
 
-            password = "YOUR_PASSWORD"
-
-            database = "neo4j"
-            ```
-            """
+                database = "neo4j"
+                ```
+                """
+            )
         )
 
         st.warning(
             "ให้ใช้ URI / Username / Password / Database "
-            "ที่ได้จาก Neo4j Aura จริง ๆ"
+            "จาก Neo4j Aura จริง"
         )
 
         st.exception(e)
@@ -165,7 +154,6 @@ def get_connection():
         st.stop()
 
 
-# สร้าง Connection
 driver, DATABASE = get_connection()
 
 
@@ -175,17 +163,9 @@ driver, DATABASE = get_connection()
 
 def run_query(
     cypher,
-    parameters=None
+    parameters=None,
+    write=False
 ):
-    """
-    ฟังก์ชันกลางสำหรับส่ง Cypher ไป Neo4j
-
-    parameters ต้องเป็น Dictionary เช่น:
-
-    {
-        "user_id": "U001"
-    }
-    """
 
     if parameters is None:
         parameters = {}
@@ -193,7 +173,12 @@ def run_query(
     result = driver.execute_query(
         cypher,
         parameters_=parameters,
-        database_=DATABASE
+        database_=DATABASE,
+        routing_=(
+            RoutingControl.WRITE
+            if write
+            else RoutingControl.READ
+        )
     )
 
     return [
@@ -207,16 +192,14 @@ def run_query(
 # =========================================================
 
 def create_constraints():
-    """
-    สร้าง Constraint สำหรับ User และ Manga
-    """
 
     run_query(
         """
         CREATE CONSTRAINT user_id_unique IF NOT EXISTS
         FOR (u:User)
         REQUIRE u.user_id IS UNIQUE
-        """
+        """,
+        write=True
     )
 
     run_query(
@@ -224,7 +207,8 @@ def create_constraints():
         CREATE CONSTRAINT manga_id_unique IF NOT EXISTS
         FOR (m:Manga)
         REQUIRE m.manga_id IS UNIQUE
-        """
+        """,
+        write=True
     )
 
 
@@ -233,9 +217,6 @@ def create_constraints():
 # =========================================================
 
 def get_users():
-    """
-    ดึง User ทั้งหมด
-    """
 
     return run_query(
         """
@@ -252,9 +233,6 @@ def get_users():
 
 
 def get_user(user_id):
-    """
-    ดึงข้อมูล User คนเดียว
-    """
 
     rows = run_query(
         """
@@ -268,7 +246,6 @@ def get_user(user_id):
             u.user_id AS user_id,
             u.name AS name
         """,
-
         {
             "user_id": user_id
         }
@@ -282,9 +259,6 @@ def get_user(user_id):
 # =========================================================
 
 def get_mangas():
-    """
-    ดึง Manga ทั้งหมด
-    """
 
     return run_query(
         """
@@ -305,9 +279,6 @@ def get_mangas():
 # =========================================================
 
 def get_liked_mangas(user_id):
-    """
-    ดึง Manga ที่ User กด Like
-    """
 
     return run_query(
         """
@@ -324,7 +295,6 @@ def get_liked_mangas(user_id):
         ORDER BY
             title
         """,
-
         {
             "user_id": user_id
         }
@@ -335,11 +305,6 @@ def add_like(
     user_id,
     manga_id
 ):
-    """
-    สร้างความสัมพันธ์
-
-    (User)-[:LIKES]->(Manga)
-    """
 
     run_query(
         """
@@ -355,11 +320,11 @@ def add_like(
         MERGE
             (u)-[:LIKES]->(m)
         """,
-
         {
             "user_id": user_id,
             "manga_id": manga_id
-        }
+        },
+        write=True
     )
 
 
@@ -371,28 +336,6 @@ def recommend_by_similar_user(
     user_id,
     limit=5
 ):
-    """
-    หา Manga จาก User ที่มีความชอบคล้ายกัน
-
-    ตัวอย่าง:
-
-    User A
-       |
-      LIKES
-       |
-    Manga 1
-       |
-      LIKES
-       |
-    User B
-       |
-      LIKES
-       |
-    Manga 2
-
-    ถ้า User A ยังไม่เคย Like Manga 2
-    ระบบจะแนะนำ Manga 2
-    """
 
     return run_query(
         """
@@ -414,9 +357,7 @@ def recommend_by_similar_user(
 
         WITH
             recommend,
-            count(
-                DISTINCT similar
-            ) AS score
+            count(DISTINCT similar) AS score
 
         RETURN
             recommend.manga_id AS manga_id,
@@ -430,7 +371,6 @@ def recommend_by_similar_user(
 
         LIMIT $limit
         """,
-
         {
             "user_id": user_id,
             "limit": int(limit)
@@ -445,11 +385,6 @@ def recommend_by_similar_user(
 def recommend_popular(
     limit=5
 ):
-    """
-    แนะนำ Manga ที่ได้รับความนิยม
-
-    นับจำนวน LIKES ของแต่ละ Manga
-    """
 
     return run_query(
         """
@@ -474,7 +409,6 @@ def recommend_popular(
 
         LIMIT $limit
         """,
-
         {
             "limit": int(limit)
         }
@@ -489,30 +423,12 @@ def get_recommendations(
     user_id,
     limit=5
 ):
-    """
-    ระบบ Recommendation หลัก
-
-    User มี LIKES
-        ↓
-    Similar User
-
-    User ไม่มี LIKES
-        ↓
-    Popular Manga
-
-    ถ้ามี LIKES แต่หา Similar User ไม่ได้
-        ↓
-    Popular Manga
-    """
 
     liked = get_liked_mangas(
         user_id
     )
 
-    # -----------------------------------------------------
-    # USER ใหม่
-    # -----------------------------------------------------
-
+    # User ใหม่
     if not liked:
 
         return (
@@ -520,10 +436,7 @@ def get_recommendations(
             "new_user"
         )
 
-    # -----------------------------------------------------
-    # USER เดิม
-    # -----------------------------------------------------
-
+    # Similar User
     rows = recommend_by_similar_user(
         user_id,
         limit
@@ -536,10 +449,7 @@ def get_recommendations(
             "similar"
         )
 
-    # -----------------------------------------------------
-    # FALLBACK
-    # -----------------------------------------------------
-
+    # Fallback
     return (
         recommend_popular(limit),
         "popular_fallback"
@@ -553,11 +463,6 @@ def get_recommendations(
 def clear_recommend_relationships(
     user_id=None
 ):
-    """
-    ลบเฉพาะ RECOMMENDS
-
-    ไม่ลบ LIKES
-    """
 
     if user_id:
 
@@ -571,10 +476,10 @@ def clear_recommend_relationships(
 
             DELETE r
             """,
-
             {
                 "user_id": user_id
-            }
+            },
+            write=True
         )
 
     else:
@@ -585,32 +490,19 @@ def clear_recommend_relationships(
                 ()-[r:RECOMMENDS]->()
 
             DELETE r
-            """
+            """,
+            write=True
         )
 
 
 # =========================================================
-# CREATE RECOMMENDS RELATIONSHIP
+# CREATE RECOMMENDS
 # =========================================================
 
 def create_recommend_relationships(
     user_id=None,
     limit=5
 ):
-    """
-    สร้าง
-
-    (User)-[:RECOMMENDS]->(Manga)
-
-    พร้อม properties:
-
-    score
-    type
-    """
-
-    # -----------------------------------------------------
-    # User คนเดียว
-    # -----------------------------------------------------
 
     if user_id:
 
@@ -624,10 +516,6 @@ def create_recommend_relationships(
             }
         ]
 
-    # -----------------------------------------------------
-    # ทุก User
-    # -----------------------------------------------------
-
     else:
 
         clear_recommend_relationships()
@@ -635,10 +523,6 @@ def create_recommend_relationships(
         target_users = get_users()
 
     created = 0
-
-    # -----------------------------------------------------
-    # สร้าง Recommendation
-    # -----------------------------------------------------
 
     for user in target_users:
 
@@ -669,13 +553,13 @@ def create_recommend_relationships(
                     r.score = $score,
                     r.type = $type
                 """,
-
                 {
                     "user_id": uid,
                     "manga_id": row["manga_id"],
                     "score": row["score"],
                     "type": row["type"]
-                }
+                },
+                write=True
             )
 
             created += 1
@@ -690,9 +574,6 @@ def create_recommend_relationships(
 def get_recommends(
     user_id=None
 ):
-    """
-    ดึง Relationship RECOMMENDS
-    """
 
     if user_id:
 
@@ -718,7 +599,6 @@ def get_recommends(
                 score DESC,
                 title
             """,
-
             {
                 "user_id": user_id
             }
@@ -755,9 +635,6 @@ def get_recommends(
 def search_manga(
     keyword=""
 ):
-    """
-    ค้นหา Manga
-    """
 
     return run_query(
         """
@@ -784,7 +661,6 @@ def search_manga(
             likes DESC,
             title
         """,
-
         {
             "keyword": keyword.strip()
         }
@@ -798,14 +674,6 @@ def search_manga(
 def get_graph(
     user_id=None
 ):
-    """
-    ดึง Graph
-
-    Relationship:
-
-    LIKES
-    RECOMMENDS
-    """
 
     if user_id:
 
@@ -827,7 +695,6 @@ def get_graph(
                 m.title AS target_name
 
             """,
-
             {
                 "user_id": user_id
             }
@@ -858,14 +725,6 @@ def get_graph(
 # =========================================================
 
 def get_metrics():
-    """
-    นับจำนวน:
-
-    User
-    Manga
-    LIKES
-    RECOMMENDS
-    """
 
     users = run_query(
         """
@@ -912,140 +771,98 @@ def get_metrics():
 # =========================================================
 
 def create_demo_data():
-    """
-    สร้างข้อมูลตัวอย่าง
 
-    U011 จะเป็น User ใหม่
-    และไม่มี LIKES
-    เพื่อทดสอบ Cold Start
-    """
-
-    # สร้าง Constraint
     create_constraints()
 
-    # -----------------------------------------------------
-    # USERS
-    # -----------------------------------------------------
-
     users = [
-
         {
             "user_id": "U001",
             "name": "Sompong"
         },
-
         {
             "user_id": "U002",
             "name": "Siriporn"
         },
-
         {
             "user_id": "U003",
             "name": "Niran"
         },
-
         {
             "user_id": "U004",
             "name": "Malee"
         },
-
         {
             "user_id": "U005",
             "name": "Chaiwat"
         },
-
         {
             "user_id": "U006",
             "name": "Kanya"
         },
-
         {
             "user_id": "U007",
             "name": "Anan"
         },
-
         {
             "user_id": "U008",
             "name": "Somying"
         },
-
         {
             "user_id": "U009",
             "name": "Prasit"
         },
-
         {
             "user_id": "U010",
             "name": "Nattaya"
         },
-
-        # User ใหม่
         {
             "user_id": "U011",
             "name": "New User"
         }
     ]
 
-    # -----------------------------------------------------
-    # MANGA
-    # -----------------------------------------------------
-
     mangas = [
-
         {
             "manga_id": "M001",
             "title": "Naruto"
         },
-
         {
             "manga_id": "M002",
             "title": "One Piece"
         },
-
         {
             "manga_id": "M003",
             "title": "Attack on Titan"
         },
-
         {
             "manga_id": "M004",
             "title": "Demon Slayer"
         },
-
         {
             "manga_id": "M005",
             "title": "Death Note"
         },
-
         {
             "manga_id": "M006",
             "title": "My Hero Academia"
         },
-
         {
             "manga_id": "M007",
             "title": "Jujutsu Kaisen"
         },
-
         {
             "manga_id": "M008",
             "title": "Fullmetal Alchemist"
         },
-
         {
             "manga_id": "M009",
             "title": "Spy x Family"
         },
-
         {
             "manga_id": "M010",
             "title": "Chainsaw Man"
         }
     ]
-
-    # -----------------------------------------------------
-    # LIKES
-    # -----------------------------------------------------
 
     likes = [
 
@@ -1083,10 +900,6 @@ def create_demo_data():
         ["U010", "M008"]
     ]
 
-    # -----------------------------------------------------
-    # CREATE USERS
-    # -----------------------------------------------------
-
     run_query(
         """
         UNWIND $users AS row
@@ -1100,15 +913,11 @@ def create_demo_data():
         SET
             u.name = row.name
         """,
-
         {
             "users": users
-        }
+        },
+        write=True
     )
-
-    # -----------------------------------------------------
-    # CREATE MANGA
-    # -----------------------------------------------------
 
     run_query(
         """
@@ -1123,15 +932,11 @@ def create_demo_data():
         SET
             m.title = row.title
         """,
-
         {
             "mangas": mangas
-        }
+        },
+        write=True
     )
-
-    # -----------------------------------------------------
-    # CREATE LIKES
-    # -----------------------------------------------------
 
     run_query(
         """
@@ -1149,10 +954,10 @@ def create_demo_data():
         MERGE
             (u)-[:LIKES]->(m)
         """,
-
         {
             "likes": likes
-        }
+        },
+        write=True
     )
 
 
@@ -1172,7 +977,6 @@ with st.sidebar:
 
     page = st.radio(
         "เมนู",
-
         [
             "Dashboard",
             "Recommendations",
@@ -1195,20 +999,21 @@ with st.sidebar:
 # =========================================================
 
 st.markdown(
-    """
-    <div class="hero">
+    dedent(
+        """
+        <div class="hero">
 
-        <h1>
-            📚 Manga Recommendation System
-        </h1>
+            <h1>
+                📚 Manga Recommendation System
+            </h1>
 
-        <p>
-            ระบบแนะนำ Manga ด้วย Neo4j Graph Database
-        </p>
+            <p>
+                ระบบแนะนำ Manga ด้วย Neo4j Graph Database
+            </p>
 
-    </div>
-    """,
-
+        </div>
+        """
+    ),
     unsafe_allow_html=True
 )
 
@@ -1261,7 +1066,6 @@ if page == "Dashboard":
         options = {
             f"{u['user_id']} — {u['name']}":
             u["user_id"]
-
             for u in all_users
         }
 
@@ -1273,10 +1077,6 @@ if page == "Dashboard":
         user_id = options[selected]
 
         left, right = st.columns(2)
-
-        # -------------------------------------------------
-        # LIKES
-        # -------------------------------------------------
 
         with left:
 
@@ -1301,10 +1101,6 @@ if page == "Dashboard":
                 st.info(
                     "User นี้ยังไม่มี LIKES"
                 )
-
-        # -------------------------------------------------
-        # RECOMMENDS
-        # -------------------------------------------------
 
         with right:
 
@@ -1354,7 +1150,6 @@ elif page == "Recommendations":
     options = {
         f"{u['user_id']} — {u['name']}":
         u["user_id"]
-
         for u in all_users
     }
 
@@ -1377,10 +1172,6 @@ elif page == "Recommendations":
         limit
     )
 
-    # -----------------------------------------------------
-    # MODE MESSAGE
-    # -----------------------------------------------------
-
     if mode == "similar":
 
         st.success(
@@ -1401,10 +1192,6 @@ elif page == "Recommendations":
             "ไม่พบ User ที่มีความชอบคล้ายกัน "
             "ระบบจึงใช้ Popular Manga เป็นทางเลือก"
         )
-
-    # -----------------------------------------------------
-    # SHOW RECOMMENDATIONS
-    # -----------------------------------------------------
 
     if not rows:
 
@@ -1432,35 +1219,32 @@ elif page == "Recommendations":
             )
 
         st.markdown(
-            f"""
-            <div class="manga-card">
+            dedent(
+                f"""
+                <div class="manga-card">
 
-                <span class="score">
-                    #{i} · score {row["score"]}
-                </span>
+                    <span class="score">
+                        #{i} · score {row["score"]}
+                    </span>
 
-                <h3>
-                    {row["title"]}
-                </h3>
+                    <h3>
+                        {row["title"]}
+                    </h3>
 
-                <div class="muted">
-                    Manga ID: {row["manga_id"]}
+                    <div class="muted">
+                        Manga ID: {row["manga_id"]}
+                    </div>
+
+                    <p>
+                        <b>เหตุผล:</b>
+                        {reason}
+                    </p>
+
                 </div>
-
-                <p>
-                    <b>เหตุผล:</b>
-                    {reason}
-                </p>
-
-            </div>
-            """,
-
+                """
+            ),
             unsafe_allow_html=True
         )
-
-    # -----------------------------------------------------
-    # CREATE RELATIONSHIP
-    # -----------------------------------------------------
 
     st.divider()
 
@@ -1494,10 +1278,7 @@ elif page == "Manga Search":
 
     keyword = st.text_input(
         "ชื่อ Manga",
-
-        placeholder=(
-            "เช่น Naruto, One Piece, Jujutsu"
-        )
+        placeholder="เช่น Naruto, One Piece, Jujutsu"
     )
 
     rows = search_manga(
@@ -1534,7 +1315,6 @@ elif page == "Manage Likes":
     )
 
     all_users = get_users()
-
     all_mangas = get_mangas()
 
     if not all_users:
@@ -1553,14 +1333,9 @@ elif page == "Manage Likes":
 
         st.stop()
 
-    # -----------------------------------------------------
-    # USER
-    # -----------------------------------------------------
-
     user_options = {
         f"{u['user_id']} — {u['name']}":
         u["user_id"]
-
         for u in all_users
     }
 
@@ -1572,10 +1347,6 @@ elif page == "Manage Likes":
     user_id = user_options[
         selected_user
     ]
-
-    # -----------------------------------------------------
-    # CURRENT LIKES
-    # -----------------------------------------------------
 
     st.markdown(
         "### ❤️ Manga ที่ชอบอยู่แล้ว"
@@ -1601,14 +1372,9 @@ elif page == "Manage Likes":
 
     st.divider()
 
-    # -----------------------------------------------------
-    # ADD LIKE
-    # -----------------------------------------------------
-
     manga_options = {
         f"{m['manga_id']} — {m['title']}":
         m["manga_id"]
-
         for m in all_mangas
     }
 
@@ -1668,10 +1434,6 @@ elif page == "Graph Explorer":
 
         st.stop()
 
-    # -----------------------------------------------------
-    # USER SELECT
-    # -----------------------------------------------------
-
     options = {
         "ทั้งหมด": None
     }
@@ -1679,7 +1441,6 @@ elif page == "Graph Explorer":
     options.update({
         f"{u['user_id']} — {u['name']}":
         u["user_id"]
-
         for u in all_users
     })
 
@@ -1703,11 +1464,8 @@ elif page == "Graph Explorer":
     else:
 
         dot = [
-
             "digraph G {",
-
             'rankdir="LR";',
-
             (
                 'node [shape=box, '
                 'style="rounded,filled", '
@@ -1720,16 +1478,8 @@ elif page == "Graph Explorer":
         for row in rows:
 
             source = row["source_id"]
-
             target = row["target_id"]
-
-            relationship = row[
-                "relationship"
-            ]
-
-            # -------------------------------------------------
-            # SOURCE
-            # -------------------------------------------------
+            relationship = row["relationship"]
 
             if source not in seen:
 
@@ -1750,10 +1500,6 @@ elif page == "Graph Explorer":
 
                 seen.add(source)
 
-            # -------------------------------------------------
-            # TARGET
-            # -------------------------------------------------
-
             if target not in seen:
 
                 safe_name = (
@@ -1772,10 +1518,6 @@ elif page == "Graph Explorer":
                 )
 
                 seen.add(target)
-
-            # -------------------------------------------------
-            # EDGE
-            # -------------------------------------------------
 
             dot.append(
                 f'"{source}" -> "{target}" '
@@ -1801,10 +1543,6 @@ elif page == "Graph Explorer":
             hide_index=True
         )
 
-    # -----------------------------------------------------
-    # CYPHER
-    # -----------------------------------------------------
-
     st.divider()
 
     st.markdown(
@@ -1817,7 +1555,6 @@ MATCH p=(u:User)-[r:LIKES|RECOMMENDS]->(m:Manga)
 RETURN p
 LIMIT 100
         """,
-
         language="cypher"
     )
 
@@ -1832,28 +1569,22 @@ elif page == "Admin / Setup":
         "⚙️ Admin / Setup"
     )
 
-    # -----------------------------------------------------
-    # SCHEMA
-    # -----------------------------------------------------
-
     st.markdown(
-        """
-        ### Graph Schema
+        dedent(
+            """
+            ### Graph Schema
 
-        ```text
-        (:User)-[:LIKES]->(:Manga)
+            ```text
+            (:User)-[:LIKES]->(:Manga)
 
-        (:User)-[:RECOMMENDS {
-            score,
-            type
-        }]->(:Manga)
-        ```
-        """
+            (:User)-[:RECOMMENDS {
+                score,
+                type
+            }]->(:Manga)
+            ```
+            """
+        )
     )
-
-    # -----------------------------------------------------
-    # CONSTRAINT
-    # -----------------------------------------------------
 
     if st.button(
         "🔧 สร้าง Constraint",
@@ -1877,10 +1608,6 @@ elif page == "Admin / Setup":
             st.exception(e)
 
     st.divider()
-
-    # -----------------------------------------------------
-    # DEMO DATA
-    # -----------------------------------------------------
 
     st.markdown(
         "### 📦 ข้อมูลตัวอย่าง"
@@ -1921,10 +1648,6 @@ elif page == "Admin / Setup":
 
     st.divider()
 
-    # -----------------------------------------------------
-    # RECOMMENDS
-    # -----------------------------------------------------
-
     st.markdown(
         "### 🔗 สร้าง RECOMMENDS"
     )
@@ -1963,10 +1686,6 @@ elif page == "Admin / Setup":
             st.exception(e)
 
     st.divider()
-
-    # -----------------------------------------------------
-    # SHOW RECOMMENDS
-    # -----------------------------------------------------
 
     st.markdown(
         "### 📋 RECOMMENDS ทั้งหมด"
